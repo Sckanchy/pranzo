@@ -1,0 +1,445 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pranzo in ufficio</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --ink:#1d2330; --muted:#677084; --accent:#d9480f; --line:#e3e6ec; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14171d; --card:#1d222b; --ink:#e8ebf1; --muted:#98a1b3; --line:#2c3340; --accent:#ff8a4c; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif; }
+  main { max-width:640px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.4rem; margin:8px 0 12px; }
+  h2 { font-size:1.05rem; margin:0 0 12px; }
+  a { color:var(--accent); }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:14px; }
+  .banner { background:color-mix(in srgb,var(--accent) 12%,var(--card)); border-color:var(--accent); font-size:.95rem; }
+  .warn { background:color-mix(in srgb,#f59f00 15%,var(--card)); border-color:#f59f00; font-size:.9rem; }
+  label { display:block; font-size:.85rem; color:var(--muted); margin:10px 0 4px; }
+  input[type=text], input[type=date], select { width:100%; padding:10px; font:inherit; color:var(--ink); background:var(--bg); border:1px solid var(--line); border-radius:8px; }
+  button { font:inherit; cursor:pointer; padding:10px 14px; border-radius:8px; border:1px solid var(--line); background:var(--card); color:var(--ink); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; }
+  button.small { padding:4px 8px; font-size:.8rem; color:var(--muted); }
+  button.sel { outline:2px solid var(--accent); }
+  .row { display:flex; gap:10px; flex-wrap:wrap; }
+  .row > button { flex:1; min-width:140px; }
+  .checks { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:6px; }
+  .checks label { display:flex; align-items:center; gap:8px; margin:0; padding:10px; color:var(--ink); font-size:1rem; border:1px solid var(--line); border-radius:8px; }
+  .bar { height:10px; background:var(--line); border-radius:6px; overflow:hidden; margin:4px 0 12px; }
+  .bar > span { display:block; height:100%; background:var(--accent); }
+  .tally { display:flex; justify-content:space-between; font-size:.95rem; }
+  ul.list { list-style:none; padding:0; margin:0; }
+  ul.list li { display:flex; justify-content:space-between; gap:8px; align-items:flex-start; padding:8px 0; border-top:1px solid var(--line); }
+  ul.list li:first-child { border-top:0; }
+  .tag { display:inline-block; background:var(--bg); border:1px solid var(--line); border-radius:99px; padding:1px 9px; font-size:.8rem; margin:2px 4px 0 0; }
+  .muted { color:var(--muted); font-size:.9rem; }
+  .hidden { display:none; }
+  .dayhead { display:flex; gap:8px; align-items:end; flex-wrap:wrap; }
+  .dayhead > div { flex:1; min-width:150px; }
+  details { border-top:1px solid var(--line); padding:8px 0; }
+  details:first-of-type { border-top:0; }
+  summary { cursor:pointer; }
+  .rules ul { padding-left:18px; margin:8px 0 0; }
+  .rules li { margin:3px 0; font-size:.92rem; }
+  .info { margin-top:12px; padding:10px; border-radius:8px; background:var(--bg); border:1px solid var(--line); font-size:.92rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>🍱 Pranzo in ufficio</h1>
+
+  <div id="modeWarn" class="card warn hidden"></div>
+
+  <div class="card">
+    <div class="dayhead">
+      <div>
+        <label for="day" style="margin-top:0">Per quale giorno?</label>
+        <input type="date" id="day">
+      </div>
+      <button id="todayBtn">Oggi</button>
+      <button id="tomorrowBtn">Domani</button>
+    </div>
+    <div id="dayLabel" class="muted" style="margin-top:8px"></div>
+    <div style="margin-top:8px"><button class="small" id="linkBtn">🔗 Copia link di questo giorno</button></div>
+  </div>
+
+  <div class="card banner">
+    📍 Consegna in ufficio, <b>piano terra</b> (Via Bernardino Alimena 111, specificare il Trony)<br>
+    💶 Solo <b>contanti</b>, importo preciso &nbsp;·&nbsp; ⏰ Ordine entro le <b>11:30–12:00</b> per pranzare alle 13:00
+  </div>
+
+  <!-- FASE 1 -->
+  <section id="votingSec">
+    <div class="card">
+      <h2>1. Sono interessato!</h2>
+      <label for="vName">Il tuo nome</label>
+      <input type="text" id="vName" placeholder="Nome e cognome" autocomplete="name">
+      <label>Cosa preferisci?</label>
+      <div class="row">
+        <button data-vote="giapponese">🍣 Giapponese</button>
+        <button data-vote="mo">🥟 Mo&amp;Dumplings</button>
+        <button data-vote="qualsiasi">😋 Mi va bene tutto</button>
+        <button data-vote="no">❌ Non ci sono</button>
+      </div>
+      <div id="monWarn" class="muted hidden" style="margin-top:8px">⚠️ Il lunedì Mo&amp;Dumplings è chiuso.</div>
+      <div id="myVote" class="muted" style="margin-top:8px"></div>
+      <div id="tally" style="margin-top:16px"></div>
+      <div id="voters" class="muted"></div>
+    </div>
+
+    <div class="card">
+      <h2>2. Apri le adesioni</h2>
+      <div class="muted" style="margin-bottom:6px">Quando c'è abbastanza interesse, chi si occupa dell'ordine apre le adesioni.</div>
+      <label for="mChoice">Opzione scelta</label>
+      <select id="mChoice"></select>
+      <label for="mManager">Responsabile dell'ordine (raccoglie ordini e contanti)</label>
+      <input type="text" id="mManager" placeholder="Nome">
+      <div id="restWrap">
+        <label for="mRest">Ristorante giapponese</label>
+        <input type="text" id="mRest" placeholder="Nome del ristorante">
+      </div>
+      <div style="margin-top:14px"><button class="primary" id="openBtn">Apri le adesioni</button></div>
+    </div>
+  </section>
+
+  <!-- FASE 2 -->
+  <section id="orderSec" class="hidden">
+    <div class="card">
+      <h2 id="orderTitle"></h2>
+      <div id="orderInfo" class="muted"></div>
+      <div id="closedWarn" class="muted hidden" style="margin-top:6px">⚠️ Oggi è lunedì: Mo&amp;Dumplings è chiuso.</div>
+      <div style="margin-top:10px" class="row">
+        <button class="small" id="editBtn">✏️ Modifica responsabile / ristorante</button>
+        <button class="small" id="backBtn">← Torna al sondaggio</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 id="formTitle">Aderisci</h2>
+      <label for="oName">Il tuo nome</label>
+      <input type="text" id="oName" placeholder="Nome e cognome" autocomplete="name">
+
+      <!-- Giapponese: preferenze -->
+      <div id="prefForm">
+        <label>Cosa ti piacerebbe nel mix? (solo preferenze, non un ordine preciso)</label>
+        <div class="checks" id="itemChecks"></div>
+        <label for="oNote">Note (allergie, cose che non mangi, ecc.)</label>
+        <input type="text" id="oNote" placeholder="es. niente pesce crudo">
+      </div>
+
+      <!-- Mo&Dumplings: piatti e importo -->
+      <div id="dishForm" class="hidden">
+        <label for="oDishes">Piatto/i scelto/i</label>
+        <input type="text" id="oDishes" placeholder="es. 6 ravioli al vapore + riso saltato">
+        <label for="oAmount">Importo del tuo ordine (€)</label>
+        <input type="text" id="oAmount" inputmode="decimal" placeholder="es. 12,50">
+      </div>
+
+      <div style="margin-top:14px"><button class="primary" id="orderBtn">Salva la mia adesione</button></div>
+      <div class="muted" style="margin-top:8px">Con lo stesso nome l'adesione viene aggiornata.</div>
+    </div>
+
+    <div class="card">
+      <h2>Riepilogo <span id="orderCount" class="muted"></span></h2>
+      <div id="itemTally"></div>
+      <ul class="list" id="orderList"></ul>
+      <div id="sumBox" class="info"></div>
+      <div id="totalWrap" class="hidden">
+        <label for="cTotal">Totale confermato dall'ordine (€) – inseriscilo il responsabile</label>
+        <div class="row"><input type="text" id="cTotal" inputmode="decimal" placeholder="es. 63,40" style="flex:2"><button id="saveTotal" style="flex:1">Salva totale</button></div>
+      </div>
+      <div style="margin-top:12px"><button id="copyBtn">📋 Copia riepilogo</button></div>
+    </div>
+  </section>
+
+  <div class="card rules" id="rules"></div>
+</main>
+
+<script type="module">
+/* ====== CONFIGURAZIONE ====== */
+// Lascia così per la modalità locale (dati solo su questo browser).
+// Per condividere con i colleghi incolla qui la config Firebase (vedi README).
+const firebaseConfig = {
+  apiKey: "AIzaSyBP_R8qzpbYLf-PVoyAvW2r6g-qfqpYnAw",
+  authDomain: "test-pranzo.firebaseapp.com",
+  projectId: "test-pranzo",
+  storageBucket: "test-pranzo.firebasestorage.app",
+  messagingSenderId: "174184050873",
+  appId: "1:174184050873:web:44718611c234c0c339ab68"
+};
+
+const COMMON_RULES = [
+  "Una persona (il responsabile) raccoglie tutti gli ordini e li invia al ristorante; a ordine confermato comunica il totale da pagare.",
+  "Ordini entro le <b>11:30–12:00</b>: il ristorante impiega 40–45 minuti tra preparazione e consegna, altrimenti si pranza alle 13:30 invece che alle 13:00.",
+  "Consegna: <b>Via Bernardino Alimena 111</b> (specificare il Trony per facilitare).",
+  "Il ristorante accetta <b>solo contanti</b>: cercate di avere l'importo giusto. Chi raccoglie l'ordine raccoglie anche i soldi."
+];
+
+const OPTIONS = {
+  giapponese: {
+    label: "Giapponese", kind: "prefs", minOrder: 50,
+    defaultRestaurant: "Mi Sushi e Ramen",
+    items: ["Ravioli", "Nigiri", "Maki / Uramaki", "Sashimi", "Ramen / Udon", "Riso / Donburi", "Tempura / fritti", "Altro"],
+    rules: [
+      "Si ordina su JustEat (<a href='https://www.justeat.it/restaurants-mi-sushi-and-ramen-ciampino/menu' target='_blank' rel='noopener'>menu online</a>). Si indicano solo le <b>preferenze</b>: il responsabile prende le degustazioni mix per ottimizzare i costi.",
+      "Ordine minimo <b>50€</b> per ottenere il <b>30% di sconto</b> sul totale al momento del pagamento."
+    ]
+  },
+  mo: {
+    label: "Mo&Dumplings", kind: "dishes", minOrder: 30, closedDay: 1,
+    rules: [
+      "Il <b>lunedì il ristorante è chiuso</b>.",
+      "Ognuno indica nome, piatto/i scelto/i e importo del proprio ordine (<a href='https://qrco.de/bfvDZe' target='_blank' rel='noopener'>menu online</a>).",
+      "Ordine minimo <b>30€</b>, altrimenti non consegnano.",
+      "Il responsabile invia l'ordine o telefona (chiedere sempre prima il totale, per preparare i soldi precisi). Contatti: Tel./WhatsApp <b>375 9298637</b>.",
+      "In alternativa ritiro al ristorante: Via Statilio Ottato 47 (metro A Subaugusta)."
+    ]
+  }
+};
+const VOTE_LABEL = { giapponese: "Giapponese", mo: "Mo&Dumplings", qualsiasi: "Tutto ok", no: "Non c'è" };
+/* ============================ */
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const slug = s => s.trim().toLowerCase().replace(/\s+/g, " ").replace(/[\/.#$\[\]]/g, "_");
+const iso = d => d.toLocaleDateString("sv-SE");
+const eur = n => "€" + (Math.round(n * 100) / 100).toFixed(2).replace(".", ",");
+const num = s => { const n = parseFloat(String(s).replace(",", ".")); return isFinite(n) ? n : NaN; };
+
+/* ---------- Storage: locale oppure Firebase ---------- */
+function localStore() {
+  const listeners = new Set();
+  const k = (day, col) => `lunch:${day}:${col}`;
+  const read = (key, def) => { try { return JSON.parse(localStorage.getItem(key)) ?? def; } catch { return def; } };
+  const write = (key, v) => { localStorage.setItem(key, JSON.stringify(v)); listeners.forEach(f => f()); };
+  return {
+    mode: "local",
+    async setPoll(day, data) { write(k(day, "poll"), { ...read(k(day, "poll"), {}), ...data }); },
+    async setVote(day, id, data) { const o = read(k(day, "votes"), {}); o[id] = data; write(k(day, "votes"), o); },
+    async setOrder(day, id, data) { const o = read(k(day, "orders"), {}); o[id] = data; write(k(day, "orders"), o); },
+    async delOrder(day, id) { const o = read(k(day, "orders"), {}); delete o[id]; write(k(day, "orders"), o); },
+    subscribe(day, cb) {
+      const emit = () => cb({
+        poll: read(k(day, "poll"), { phase: "voting" }),
+        votes: Object.values(read(k(day, "votes"), {})),
+        orders: Object.values(read(k(day, "orders"), {}))
+      });
+      listeners.add(emit); window.addEventListener("storage", emit); emit();
+      return () => { listeners.delete(emit); window.removeEventListener("storage", emit); };
+    }
+  };
+}
+
+async function firebaseStore(cfg) {
+  const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js");
+  const fs = await import("https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js");
+  const db = fs.getFirestore(initializeApp(cfg));
+  const P = day => fs.doc(db, "polls", day);
+  const C = (day, c) => fs.collection(db, "polls", day, c);
+  return {
+    mode: "firebase",
+    setPoll: (day, data) => fs.setDoc(P(day), data, { merge: true }),
+    setVote: (day, id, data) => fs.setDoc(fs.doc(C(day, "votes"), id), data),
+    setOrder: (day, id, data) => fs.setDoc(fs.doc(C(day, "orders"), id), data),
+    delOrder: (day, id) => fs.deleteDoc(fs.doc(C(day, "orders"), id)),
+    subscribe(day, cb) {
+      const st = { poll: { phase: "voting" }, votes: [], orders: [] };
+      const u = [
+        fs.onSnapshot(P(day), s => { st.poll = s.exists() ? s.data() : { phase: "voting" }; cb({ ...st }); }),
+        fs.onSnapshot(C(day, "votes"), s => { st.votes = s.docs.map(d => d.data()); cb({ ...st }); }),
+        fs.onSnapshot(C(day, "orders"), s => { st.orders = s.docs.map(d => d.data()); cb({ ...st }); })
+      ];
+      return () => u.forEach(f => f());
+    }
+  };
+}
+
+let store;
+if (!firebaseConfig.apiKey.startsWith("INSERISCI")) {
+  try { store = await firebaseStore(firebaseConfig); } catch (e) { console.error(e); }
+}
+if (!store) store = localStore();
+if (store.mode === "local") {
+  $("modeWarn").classList.remove("hidden");
+  $("modeWarn").innerHTML = "⚠️ <b>Modalità locale</b>: le risposte restano solo su questo browser. Per vederle tra colleghi configura Firebase (vedi README).";
+}
+
+/* ---------- Stato ---------- */
+let day = /^\d{4}-\d{2}-\d{2}$/.test(location.hash.slice(1)) ? location.hash.slice(1) : iso(new Date());
+let state = { poll: { phase: "voting" }, votes: [], orders: [] };
+let unsub = null, rulesFor = null;
+
+const remember = n => { localStorage.setItem("lunchName", n); $("vName").value = $("oName").value = n; };
+$("vName").value = $("oName").value = localStorage.getItem("lunchName") || "";
+
+$("mChoice").innerHTML = Object.entries(OPTIONS).map(([k, v]) => `<option value="${k}">${esc(v.label)}</option>`).join("");
+$("mRest").value = OPTIONS.giapponese.defaultRestaurant;
+const syncRest = () => $("restWrap").classList.toggle("hidden", $("mChoice").value !== "giapponese");
+$("mChoice").addEventListener("change", () => { $("mChoice").dataset.touched = "1"; syncRest(); });
+syncRest();
+
+const isClosed = key => OPTIONS[key]?.closedDay === new Date(day + "T12:00:00").getDay();
+
+function setDay(d) {
+  day = d; $("day").value = d; location.hash = d;
+  $("dayLabel").textContent = new Date(d + "T12:00:00").toLocaleDateString("it-IT", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  $("mChoice").dataset.touched = ""; $("itemChecks").dataset.for = "";
+  if (unsub) unsub();
+  state = { poll: { phase: "voting" }, votes: [], orders: [] };
+  unsub = store.subscribe(day, s => { state = s; render(); });
+}
+$("day").addEventListener("change", e => e.target.value && setDay(e.target.value));
+$("todayBtn").onclick = () => setDay(iso(new Date()));
+$("tomorrowBtn").onclick = () => { const d = new Date(); d.setDate(d.getDate() + 1); setDay(iso(d)); };
+$("linkBtn").onclick = async () => {
+  await navigator.clipboard.writeText(location.href.split("#")[0] + "#" + day);
+  $("linkBtn").textContent = "✅ Link copiato"; setTimeout(() => $("linkBtn").textContent = "🔗 Copia link di questo giorno", 1500);
+};
+
+/* ---------- Azioni ---------- */
+document.querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
+  const name = $("vName").value.trim();
+  if (!name) { $("vName").focus(); return alert("Inserisci il tuo nome."); }
+  remember(name);
+  await store.setVote(day, slug(name), { name, choice: b.dataset.vote, ts: Date.now() });
+});
+
+$("openBtn").onclick = async () => {
+  const choice = $("mChoice").value, manager = $("mManager").value.trim();
+  if (isClosed(choice)) return alert(`${OPTIONS[choice].label} oggi è chiuso: scegli un altro giorno.`);
+  if (!manager) { $("mManager").focus(); return alert("Indica il responsabile dell'ordine."); }
+  await store.setPoll(day, { phase: "open", choice, manager, restaurant: choice === "giapponese" ? $("mRest").value.trim() : "" });
+};
+$("backBtn").onclick = () => store.setPoll(day, { phase: "voting" });
+$("editBtn").onclick = () => {
+  $("mManager").value = state.poll.manager || ""; $("mRest").value = state.poll.restaurant || "";
+  $("mChoice").value = state.poll.choice; $("mChoice").dataset.touched = "1"; syncRest();
+  store.setPoll(day, { phase: "voting" });
+};
+$("saveTotal").onclick = () => {
+  const t = num($("cTotal").value);
+  if (!(t > 0)) return alert("Inserisci un totale valido.");
+  store.setPoll(day, { confirmedTotal: t });
+};
+
+$("orderBtn").onclick = async () => {
+  const p = state.poll, opt = OPTIONS[p.choice];
+  const name = $("oName").value.trim();
+  if (!name) { $("oName").focus(); return alert("Inserisci il tuo nome."); }
+  const data = { name, ts: Date.now() };
+  if (opt.kind === "prefs") {
+    data.items = [...document.querySelectorAll("#itemChecks input:checked")].map(i => i.value);
+    data.note = $("oNote").value.trim();
+    if (!data.items.length) return alert("Seleziona almeno una preferenza.");
+  } else {
+    data.dishes = $("oDishes").value.trim();
+    data.amount = num($("oAmount").value);
+    if (!data.dishes) { $("oDishes").focus(); return alert("Indica cosa vuoi ordinare."); }
+    if (!(data.amount > 0)) { $("oAmount").focus(); return alert("Indica l'importo del tuo ordine."); }
+  }
+  remember(name);
+  await store.setOrder(day, slug(name), data);
+};
+
+$("copyBtn").onclick = async () => {
+  const p = state.poll, opt = OPTIONS[p.choice];
+  const orders = [...state.orders].sort((a, b) => a.ts - b.ts);
+  const lines = [`${p.restaurant || opt.label} – ${day} (resp. ${p.manager})`];
+  if (opt.kind === "prefs") {
+    const t = {}; orders.forEach(o => (o.items || []).forEach(i => t[i] = (t[i] || 0) + 1));
+    lines.push("Preferenze: " + (Object.entries(t).map(([k, n]) => `${k} x${n}`).join(", ") || "-"));
+    orders.forEach(o => lines.push(`- ${o.name}: ${(o.items || []).join(", ")}${o.note ? " (" + o.note + ")" : ""}`));
+  } else {
+    orders.forEach(o => lines.push(`- ${o.name}: ${o.dishes} – ${eur(o.amount || 0)}`));
+    lines.push("Totale: " + eur(orders.reduce((s, o) => s + (o.amount || 0), 0)));
+  }
+  await navigator.clipboard.writeText(lines.join("\n"));
+  $("copyBtn").textContent = "✅ Copiato"; setTimeout(() => $("copyBtn").textContent = "📋 Copia riepilogo", 1500);
+};
+
+/* ---------- Render ---------- */
+function renderRules(keys) {
+  const sig = keys.join(",");
+  if (sig === rulesFor) return;
+  rulesFor = sig;
+  const block = (title, arr) => `<details><summary><b>${title}</b></summary><ul>${arr.map(r => `<li>${r}</li>`).join("")}</ul></details>`;
+  $("rules").innerHTML = `<h2>📋 Regolamento</h2>` +
+    block("Valido per tutti", COMMON_RULES) +
+    keys.map(k => block(OPTIONS[k].label, OPTIONS[k].rules)).join("");
+}
+
+function render() {
+  const p = state.poll, open = p.phase === "open" && OPTIONS[p.choice];
+  $("votingSec").classList.toggle("hidden", !!open);
+  $("orderSec").classList.toggle("hidden", !open);
+  renderRules(open ? [p.choice] : Object.keys(OPTIONS));
+
+  if (!open) {
+    const counts = { giapponese: 0, mo: 0, qualsiasi: 0, no: 0 };
+    state.votes.forEach(v => counts[v.choice] = (counts[v.choice] || 0) + 1);
+    const total = state.votes.length || 1;
+    $("tally").innerHTML = [["giapponese", "🍣 Giapponese"], ["mo", "🥟 Mo&Dumplings"], ["qualsiasi", "😋 Mi va bene tutto"], ["no", "❌ Non ci sono"]].map(([k, l]) =>
+      `<div class="tally"><span>${l}</span><b>${counts[k]}</b></div><div class="bar"><span style="width:${counts[k] / total * 100}%"></span></div>`).join("");
+    $("voters").innerHTML = state.votes.length
+      ? [...state.votes].sort((a, b) => a.ts - b.ts).map(v => `${esc(v.name)} <span class="tag">${esc(VOTE_LABEL[v.choice] || v.choice)}</span>`).join(" ")
+      : "Nessuno si è ancora espresso per questo giorno.";
+    const mine = state.votes.find(v => slug(v.name) === slug($("vName").value || ""));
+    $("myVote").textContent = mine ? `Il tuo voto: ${VOTE_LABEL[mine.choice]}` : "";
+    document.querySelectorAll("[data-vote]").forEach(b => b.classList.toggle("sel", !!mine && mine.choice === b.dataset.vote));
+    const closedMo = isClosed("mo");
+    $("monWarn").classList.toggle("hidden", !closedMo);
+    document.querySelector('[data-vote="mo"]').disabled = closedMo;
+    if (!$("mChoice").dataset.touched) { $("mChoice").value = counts.mo > counts.giapponese && !closedMo ? "mo" : "giapponese"; syncRest(); }
+    return;
+  }
+
+  const opt = OPTIONS[p.choice], prefs = opt.kind === "prefs";
+  $("orderTitle").textContent = (prefs ? "Raccolta preferenze: " : "Adesioni aperte: ") + (p.restaurant || opt.label);
+  $("orderInfo").innerHTML = `Responsabile dell'ordine: <b>${esc(p.manager)}</b>`;
+  $("closedWarn").classList.toggle("hidden", !isClosed(p.choice));
+  $("formTitle").textContent = prefs ? "Le tue preferenze" : "Il tuo ordine";
+  $("prefForm").classList.toggle("hidden", !prefs);
+  $("dishForm").classList.toggle("hidden", prefs);
+  $("totalWrap").classList.toggle("hidden", !prefs);
+  if (prefs && $("itemChecks").dataset.for !== p.choice) {
+    $("itemChecks").dataset.for = p.choice;
+    $("itemChecks").innerHTML = opt.items.map(i => `<label><input type="checkbox" value="${esc(i)}"> ${esc(i)}</label>`).join("");
+  }
+
+  const orders = [...state.orders].sort((a, b) => a.ts - b.ts);
+  $("orderCount").textContent = `(${orders.length})`;
+
+  if (prefs) {
+    const tally = {}; orders.forEach(o => (o.items || []).forEach(i => tally[i] = (tally[i] || 0) + 1));
+    $("itemTally").innerHTML = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([k, n]) => `<span class="tag">${esc(k)} × ${n}</span>`).join("") || '<span class="muted">Nessuna preferenza ancora.</span>';
+    $("orderList").innerHTML = orders.map(o =>
+      `<li><div><b>${esc(o.name)}</b><br>${(o.items || []).map(i => `<span class="tag">${esc(i)}</span>`).join("")}${o.note ? `<div class="muted">${esc(o.note)}</div>` : ""}</div>
+       <button class="small" data-del="${esc(slug(o.name))}">Rimuovi</button></li>`).join("");
+    let info = "";
+    if (orders.length) info += `Per arrivare a ${opt.minOrder}€ (sconto 30%) servono circa <b>${eur(opt.minOrder / orders.length)}</b> a testa con ${orders.length} adesioni.`;
+    if (p.confirmedTotal && orders.length) info += `<br>Totale confermato <b>${eur(p.confirmedTotal)}</b> → quota a testa (divisione in parti uguali): <b>${eur(p.confirmedTotal / orders.length)}</b>.`;
+    $("sumBox").innerHTML = info || "Le adesioni compariranno qui.";
+    if (document.activeElement !== $("cTotal")) $("cTotal").value = p.confirmedTotal ? String(p.confirmedTotal).replace(".", ",") : "";
+  } else {
+    $("itemTally").innerHTML = "";
+    $("orderList").innerHTML = orders.map(o =>
+      `<li><div><b>${esc(o.name)}</b> – ${eur(o.amount || 0)}<div class="muted">${esc(o.dishes || "")}</div></div>
+       <button class="small" data-del="${esc(slug(o.name))}">Rimuovi</button></li>`).join("");
+    const tot = orders.reduce((s, o) => s + (o.amount || 0), 0);
+    $("sumBox").innerHTML = `Totale ordinato: <b>${eur(tot)}</b> — ` + (tot >= opt.minOrder
+      ? `minimo di ${opt.minOrder}€ raggiunto ✅`
+      : `mancano <b>${eur(opt.minOrder - tot)}</b> al minimo di ${opt.minOrder}€ per la consegna.`);
+  }
+  document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Rimuovere questa adesione?")) store.delOrder(day, b.dataset.del); });
+}
+
+$("vName").addEventListener("input", render);
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (/^\d{4}-\d{2}-\d{2}$/.test(h) && h !== day) setDay(h); });
+setDay(day);
+</script>
+</body>
+</html>
