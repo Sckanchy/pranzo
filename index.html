@@ -56,10 +56,12 @@
 
   <div class="card">
     <div class="dayhead">
+      <button id="prevBtn" title="Giorno precedente" aria-label="Giorno precedente">◀</button>
       <div>
-        <label for="day" style="margin-top:0">Per quale giorno?</label>
+        <label for="day" style="margin-top:0">📅 Scegli la data (clicca per aprire il calendario)</label>
         <input type="date" id="day">
       </div>
+      <button id="nextBtn" title="Giorno successivo" aria-label="Giorno successivo">▶</button>
       <button id="todayBtn">Oggi</button>
       <button id="tomorrowBtn">Domani</button>
     </div>
@@ -92,8 +94,8 @@
     </div>
 
     <div class="card">
-      <h2>2. Apri le adesioni</h2>
-      <div class="muted" style="margin-bottom:6px">Quando c'è abbastanza interesse, chi si occupa dell'ordine apre le adesioni.</div>
+      <h2>2. Chiudi sondaggio</h2>
+      <div class="muted" style="margin-bottom:6px">Quando c'è abbastanza interesse, chi si occupa dell'ordine chiude il sondaggio e si passa alla raccolta delle adesioni. Se qualcuno si vuole aggiungere, può comunque ancora farlo inserendo le proprie preferenze, ma non sarà piu possibile cambiare il ristorante selezionato.</div>
       <label for="mChoice">Opzione scelta</label>
       <select id="mChoice"></select>
       <label for="mManager">Responsabile dell'ordine (raccoglie ordini e contanti)</label>
@@ -102,7 +104,7 @@
         <label for="mRest">Ristorante giapponese</label>
         <input type="text" id="mRest" placeholder="Nome del ristorante">
       </div>
-      <div style="margin-top:14px"><button class="primary" id="openBtn">Apri le adesioni</button></div>
+      <div style="margin-top:14px"><button class="primary" id="openBtn">Chiudi sondaggio</button></div>
     </div>
   </section>
 
@@ -114,7 +116,7 @@
       <div id="closedWarn" class="muted hidden" style="margin-top:6px">⚠️ Oggi è lunedì: Mo&amp;Dumplings è chiuso.</div>
       <div style="margin-top:10px" class="row">
         <button class="small" id="editBtn">✏️ Modifica responsabile / ristorante</button>
-        <button class="small" id="backBtn">← Torna al sondaggio</button>
+        <button class="small" id="backBtn">← Riapri sondaggio</button>
       </div>
     </div>
 
@@ -125,10 +127,10 @@
 
       <!-- Giapponese: preferenze -->
       <div id="prefForm">
-        <label>Cosa ti piacerebbe nel mix? (solo preferenze, non un ordine preciso)</label>
+        <label>Cosa ti piacerebbe nel mix? Scegli una o più voci, oppure "Indifferente" (solo preferenze, non un ordine preciso)</label>
         <div class="checks" id="itemChecks"></div>
-        <label for="oNote">Note (allergie, cose che non mangi, ecc.)</label>
-        <input type="text" id="oNote" placeholder="es. niente pesce crudo">
+        <label for="oNote">Altro / dettagli (specifica cosa preferisci, allergie, cosa non mangi)</label>
+        <input type="text" id="oNote" placeholder="es. più riso, niente pesce crudo">
       </div>
 
       <!-- Mo&Dumplings: piatti e importo -->
@@ -155,6 +157,11 @@
       <div style="margin-top:12px"><button id="copyBtn">📋 Copia riepilogo</button></div>
     </div>
   </section>
+
+  <div class="card">
+    <h2>🗂️ Archivio</h2>
+    <ul class="list" id="archiveList"></ul>
+  </div>
 
   <div class="card rules" id="rules"></div>
 </main>
@@ -183,7 +190,7 @@ const OPTIONS = {
   giapponese: {
     label: "Giapponese", kind: "prefs", minOrder: 50,
     defaultRestaurant: "Mi Sushi e Ramen",
-    items: ["Ravioli", "Nigiri", "Maki / Uramaki", "Sashimi", "Ramen / Udon", "Riso / Donburi", "Tempura / fritti", "Altro"],
+    items: ["Indifferente", "Ravioli", "Nigiri", "Maki / Uramaki", "Sashimi", "Ramen / Udon", "Riso / Donburi", "Tempura / fritti", "Altro"],
     rules: [
       "Si ordina su JustEat (<a href='https://www.justeat.it/restaurants-mi-sushi-and-ramen-ciampino/menu' target='_blank' rel='noopener'>menu online</a>). Si indicano solo le <b>preferenze</b>: il responsabile prende le degustazioni mix per ottimizzare i costi.",
       "Ordine minimo <b>50€</b> per ottenere il <b>30% di sconto</b> sul totale al momento del pagamento."
@@ -222,6 +229,17 @@ function localStore() {
     async setVote(day, id, data) { const o = read(k(day, "votes"), {}); o[id] = data; write(k(day, "votes"), o); },
     async setOrder(day, id, data) { const o = read(k(day, "orders"), {}); o[id] = data; write(k(day, "orders"), o); },
     async delOrder(day, id) { const o = read(k(day, "orders"), {}); delete o[id]; write(k(day, "orders"), o); },
+    listDays(cb) {
+      const emit = () => {
+        const days = new Set();
+        for (let i = 0; i < localStorage.length; i++) {
+          const m = (localStorage.key(i) || "").match(/^lunch:(\d{4}-\d{2}-\d{2}):/);
+          if (m) days.add(m[1]);
+        }
+        cb([...days].map(d => ({ day: d, poll: read(k(d, "poll"), {}) })));
+      };
+      listeners.add(emit); window.addEventListener("storage", emit); emit();
+    },
     subscribe(day, cb) {
       const emit = () => cb({
         poll: read(k(day, "poll"), { phase: "voting" }),
@@ -246,6 +264,7 @@ async function firebaseStore(cfg) {
     setVote: (day, id, data) => fs.setDoc(fs.doc(C(day, "votes"), id), data),
     setOrder: (day, id, data) => fs.setDoc(fs.doc(C(day, "orders"), id), data),
     delOrder: (day, id) => fs.deleteDoc(fs.doc(C(day, "orders"), id)),
+    listDays: cb => fs.onSnapshot(fs.collection(db, "polls"), s => cb(s.docs.map(d => ({ day: d.id, poll: d.data() })))),
     subscribe(day, cb) {
       const st = { poll: { phase: "voting" }, votes: [], orders: [] };
       const u = [
@@ -291,8 +310,13 @@ function setDay(d) {
   if (unsub) unsub();
   state = { poll: { phase: "voting" }, votes: [], orders: [] };
   unsub = store.subscribe(day, s => { state = s; render(); });
+  if (typeof renderArchive === "function") renderArchive();
 }
 $("day").addEventListener("change", e => e.target.value && setDay(e.target.value));
+const shift = n => { const d = new Date(day + "T12:00:00"); d.setDate(d.getDate() + n); setDay(iso(d)); };
+$("prevBtn").onclick = () => shift(-1);
+$("nextBtn").onclick = () => shift(1);
+$("day").addEventListener("click", () => { try { $("day").showPicker(); } catch {} });
 $("todayBtn").onclick = () => setDay(iso(new Date()));
 $("tomorrowBtn").onclick = () => { const d = new Date(); d.setDate(d.getDate() + 1); setDay(iso(d)); };
 $("linkBtn").onclick = async () => {
@@ -305,6 +329,7 @@ document.querySelectorAll("[data-vote]").forEach(b => b.onclick = async () => {
   const name = $("vName").value.trim();
   if (!name) { $("vName").focus(); return alert("Inserisci il tuo nome."); }
   remember(name);
+  await store.setPoll(day, { touched: true }); // fa comparire il giorno nell'archivio
   await store.setVote(day, slug(name), { name, choice: b.dataset.vote, ts: Date.now() });
 });
 
@@ -368,7 +393,7 @@ function renderRules(keys) {
   rulesFor = sig;
   const block = (title, arr) => `<details><summary><b>${title}</b></summary><ul>${arr.map(r => `<li>${r}</li>`).join("")}</ul></details>`;
   $("rules").innerHTML = `<h2>📋 Regolamento</h2>` +
-    block("Valido per tutti", COMMON_RULES) +
+    block("Regolamento Generale", COMMON_RULES) +
     keys.map(k => block(OPTIONS[k].label, OPTIONS[k].rules)).join("");
 }
 
@@ -401,7 +426,7 @@ function render() {
   $("orderTitle").textContent = (prefs ? "Raccolta preferenze: " : "Adesioni aperte: ") + (p.restaurant || opt.label);
   $("orderInfo").innerHTML = `Responsabile dell'ordine: <b>${esc(p.manager)}</b>`;
   $("closedWarn").classList.toggle("hidden", !isClosed(p.choice));
-  $("formTitle").textContent = prefs ? "Le tue preferenze" : "Il tuo ordine";
+  $("formTitle").textContent = (prefs ? "Le tue preferenze" : "Il tuo ordine") + " – " + (p.restaurant || opt.label);
   $("prefForm").classList.toggle("hidden", !prefs);
   $("dishForm").classList.toggle("hidden", prefs);
   $("totalWrap").classList.toggle("hidden", !prefs);
@@ -436,6 +461,29 @@ function render() {
   }
   document.querySelectorAll("[data-del]").forEach(b => b.onclick = () => { if (confirm("Rimuovere questa adesione?")) store.delOrder(day, b.dataset.del); });
 }
+
+/* "Indifferente" esclude le altre voci e viceversa */
+const INDIFF = "Indifferente";
+$("itemChecks").addEventListener("change", e => {
+  const t = e.target; if (t.type !== "checkbox" || !t.checked) return;
+  document.querySelectorAll("#itemChecks input").forEach(b => {
+    if (b !== t && (t.value === INDIFF || b.value === INDIFF)) b.checked = false;
+  });
+});
+
+/* Archivio dei giorni */
+let archive = [];
+function renderArchive() {
+  const list = [...archive].sort((a, b) => b.day.localeCompare(a.day));
+  $("archiveList").innerHTML = list.length ? list.map(({ day: d, poll: p }) => {
+    const opt = OPTIONS[p.choice];
+    const what = p.phase === "open" && opt ? `${esc(p.restaurant || opt.label)} · resp. ${esc(p.manager || "-")}` : "solo sondaggio";
+    const label = new Date(d + "T12:00:00").toLocaleDateString("it-IT", { weekday: "short", day: "numeric", month: "short", year: "numeric" });
+    return `<li><div><b>${label}</b><div class="muted">${what}</div></div><button class="small" data-goto="${d}"${d === day ? " disabled" : ""}>${d === day ? "Aperto" : "Apri"}</button></li>`;
+  }).join("") : '<span class="muted">Ancora nessun giorno in archivio.</span>';
+  document.querySelectorAll("[data-goto]").forEach(b => b.onclick = () => { setDay(b.dataset.goto); window.scrollTo({ top: 0, behavior: "smooth" }); });
+}
+store.listDays(l => { archive = l; renderArchive(); });
 
 $("vName").addEventListener("input", render);
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if (/^\d{4}-\d{2}-\d{2}$/.test(h) && h !== day) setDay(h); });
